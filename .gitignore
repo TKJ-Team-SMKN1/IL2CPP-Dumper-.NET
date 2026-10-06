@@ -1,0 +1,16 @@
+bin/
+obj/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.swp
+
+# Test/build output
+artifacts/
+output/
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
