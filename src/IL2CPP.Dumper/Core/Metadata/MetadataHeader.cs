@@ -1,10 +1,7 @@
 namespace IL2CPP.Dumper.Core.Metadata;
 
-public sealed record MetadataDocument(
+public sealed record MetadataHeader(
     uint Magic,
     int Version,
-    long FileSize,
-    int HeaderBytesRead,
-    bool Parsed,
     IReadOnlyList<MetadataSection> Sections
 );
