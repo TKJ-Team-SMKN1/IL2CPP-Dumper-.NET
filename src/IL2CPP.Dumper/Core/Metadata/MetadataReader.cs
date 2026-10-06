@@ -36,7 +36,9 @@ public sealed class MetadataReader : IMetadataParser
             throw new ArgumentNullException(nameof(input));
 
         if (!input.CanRead)
-            throw new InvalidOperationException("Metadata stream is not readable.");
+            throw new InvalidOperationException(
+                "Metadata stream is not readable."
+            );
 
         long fileSize = input.CanSeek ? input.Length : -1;
 
@@ -58,6 +60,9 @@ public sealed class MetadataReader : IMetadataParser
 
         int version = ReadInt32(reader);
 
+      MetadataVersionProfile profile =
+      MetadataVersionProfile.FromVersion(version);
+
         if (version < 16 || version > 1000)
         {
             throw new InvalidDataException(
@@ -74,23 +79,21 @@ public sealed class MetadataReader : IMetadataParser
             uint offset = ReadUInt32(reader);
             int sizeOrCount = ReadInt32(reader);
 
-            if (sizeOrCount < 0)
-            {
-                throw new InvalidDataException(
-                    $"Negative section size/count for '{name}'."
-                );
-            }
-
-            if (fileSize >= 0 && offset > fileSize)
-            {
-                throw new InvalidDataException(
-                    $"Section '{name}' points outside the file: " +
-                    $"offset={offset}, fileSize={fileSize}."
-                );
-            }
+            ValidateSection(
+                name,
+                offset,
+                sizeOrCount,
+                MetadataSectionKind.ByteRange,
+                fileSize
+            );
 
             sections.Add(
-                new MetadataSection(name, offset, sizeOrCount)
+                new MetadataSection(
+                    name,
+                    offset,
+                    sizeOrCount,
+                    MetadataSectionKind.ByteRange
+                )
             );
         }
 
@@ -110,6 +113,43 @@ public sealed class MetadataReader : IMetadataParser
         );
     }
 
+    private static void ValidateSection(
+        string name,
+        uint offset,
+        int sizeOrCount,
+        MetadataSectionKind kind,
+        long fileSize
+    )
+    {
+        if (sizeOrCount < 0)
+        {
+            throw new InvalidDataException(
+                $"Negative section size/count for '{name}'."
+            );
+        }
+
+        if (fileSize < 0)
+            return;
+
+        if (offset > fileSize)
+        {
+            throw new InvalidDataException(
+                $"Section '{name}' points outside the file: " +
+                $"offset={offset}, fileSize={fileSize}."
+            );
+        }
+
+        if (kind == MetadataSectionKind.ByteRange &&
+            (long)offset + sizeOrCount > fileSize)
+        {
+            throw new InvalidDataException(
+                $"Section '{name}' exceeds the file: " +
+                $"offset={offset}, size={sizeOrCount}, " +
+                $"fileSize={fileSize}."
+            );
+        }
+    }
+
     private static uint ReadUInt32(BinaryReader reader)
     {
         Span<byte> buffer = stackalloc byte[sizeof(uint)];
@@ -117,9 +157,11 @@ public sealed class MetadataReader : IMetadataParser
         int read = reader.Read(buffer);
 
         if (read != sizeof(uint))
+        {
             throw new InvalidDataException(
                 "Unexpected end of metadata file."
             );
+        }
 
         return BinaryPrimitives.ReadUInt32LittleEndian(buffer);
     }
@@ -131,9 +173,11 @@ public sealed class MetadataReader : IMetadataParser
         int read = reader.Read(buffer);
 
         if (read != sizeof(int))
+        {
             throw new InvalidDataException(
                 "Unexpected end of metadata file."
             );
+        }
 
         return BinaryPrimitives.ReadInt32LittleEndian(buffer);
     }

@@ -7,7 +7,8 @@ var tests = new (string Name, Action Test)[]
     ("Invalid magic", TestInvalidMagic),
     ("Truncated header", TestTruncatedHeader),
     ("Negative section size", TestNegativeSectionSize),
-    ("Out-of-range section offset", TestOutOfRangeOffset)
+    ("Out-of-range section offset", TestOutOfRangeOffset),
+    ("Metadata version profile", TestVersionProfile)
 };
 
 int passed = 0;
@@ -44,7 +45,10 @@ static void TestValidHeader()
     var reader = new MetadataReader();
     MetadataDocument document = reader.Parse(stream);
 
-    Assert(document.Parsed, "Document should be marked as parsed.");
+    Assert(
+        document.Parsed,
+        "Document should be marked as parsed."
+    );
 
     Assert(
         document.Magic == MetadataReader.MetadataMagic,
@@ -149,6 +153,52 @@ static void TestOutOfRangeOffset()
 }
 
 
+static void TestVersionProfile()
+{
+    var legacy = MetadataVersionProfile.FromVersion(18);
+
+    Assert(
+        !legacy.HasFieldRefs,
+        "Version 18 should not have field refs."
+    );
+
+    var v19 = MetadataVersionProfile.FromVersion(19);
+
+    Assert(
+        v19.HasFieldRefs,
+        "Version 19 should have field refs."
+    );
+
+    var v20 = MetadataVersionProfile.FromVersion(20);
+
+    Assert(
+        v20.HasReferencedAssemblies,
+        "Version 20 should have referenced assemblies."
+    );
+
+    var v22 = MetadataVersionProfile.FromVersion(22);
+
+    Assert(
+        v22.HasUnresolvedVirtualCalls,
+        "Version 22 should have unresolved virtual call metadata."
+    );
+
+    var v27 = MetadataVersionProfile.FromVersion(27);
+
+    Assert(
+        v27.HasWindowsRuntimeStrings,
+        "Version 27 should have Windows Runtime strings."
+    );
+
+    var v29 = MetadataVersionProfile.FromVersion(29);
+
+    Assert(
+        v29.HasAttributeData,
+        "Version 29 should have attribute data."
+    );
+}
+
+
 static byte[] CreateMetadata(int version = 29)
 {
     const int sectionCount = 20;
@@ -192,4 +242,4 @@ static void AssertThrows<TException>(Action action)
     throw new Exception(
         $"Expected {typeof(TException).Name}."
     );
-}
+    }
